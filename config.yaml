@@ -1,0 +1,25 @@
+database:
+  path: "data/engram.db"
+
+embeddings:
+  # backend: "sentence-transformers" | "ollama"
+  backend: "sentence-transformers"
+  model: "sentence-transformers/all-MiniLM-L6-v2"
+  dimensions: 384
+  device: "cpu"
+  # Ollama settings (used when backend is "ollama")
+  ollama_url: "http://localhost:11434"
+  ollama_model: "nomic-embed-text"
+  ollama_dimensions: 768
+
+search:
+  default_limit: 10
+  similarity_threshold: 0.3
+
+mcp:
+  server_name: "engram"
+  version: "1.0.0"
+
+http:
+  host: "127.0.0.1"
+  port: 7823
