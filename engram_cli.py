@@ -7,9 +7,6 @@ from datetime import datetime
 import yaml
 import click
 
-from engram_db import EngramDatabase
-from engram_embeddings import EmbeddingGenerator
-
 
 def load_config():
     config_path = Path(__file__).parent / "config.yaml"
@@ -27,6 +24,7 @@ _embedder = None
 def get_db():
     global _db
     if _db is None:
+        from engram_db import EngramDatabase
         config = load_config()
         backend = config['embeddings'].get('backend', 'sentence-transformers')
         dim = config['embeddings'].get('ollama_dimensions' if backend == 'ollama' else 'dimensions', 384)
@@ -38,6 +36,7 @@ def get_db():
 def get_embedder():
     global _embedder
     if _embedder is None:
+        from engram_embeddings import EmbeddingGenerator
         config = load_config()
         _embedder = EmbeddingGenerator(config['embeddings'])
     return _embedder
@@ -177,6 +176,36 @@ def install(verbose):
     """
     from engram_install import run_install
     run_install(verbose=verbose)
+
+
+@cli.group()
+def skill():
+    """Manage the Engram skill for AI coding tools."""
+    pass
+
+
+@skill.command(name='install')
+@click.option('--verbose', '-v', is_flag=True, help='Show undetected tools too')
+def skill_install(verbose):
+    """Install the Engram skill into ~/.agents/skills/ and link to all detected tools.
+
+    Creates ~/.agents/skills/engram -> <repo>/skill/ then symlinks into:
+      ~/.claude/skills/engram
+      ~/.gemini/antigravity/skills/engram
+      ~/.gemini/antigravity-ide/skills/engram
+      ~/.cursor/skills/engram
+      ~/.windsurf/skills/engram
+    """
+    from engram_install import run_skill_install
+    run_skill_install(verbose=verbose)
+
+
+@skill.command(name='path')
+def skill_path():
+    """Print the path to the Engram skill file."""
+    from pathlib import Path
+    skill_file = Path(__file__).parent / "skill" / "SKILL.md"
+    click.echo(str(skill_file))
 
 
 @cli.command()
