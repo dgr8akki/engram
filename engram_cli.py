@@ -44,7 +44,7 @@ def get_embedder():
     return _embedder
 
 
-@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.group(name="engram", context_settings={"help_option_names": ["-h", "--help"]})
 @click.version_option(__version__, "-V", "--version", prog_name="engram")
 def cli():
     """Engram — your local semantic knowledge base."""
@@ -306,4 +306,4 @@ def serve(host, port):
 
 
 if __name__ == '__main__':
-    cli()
+    cli(prog_name="engram")
