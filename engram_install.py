@@ -130,6 +130,9 @@ def run_install(verbose: bool = False):
     print(f"\nRestart your IDE/tool to load the 'engram' MCP server.")
     print(f"Server: {_python()} {MCP_SERVER}")
 
+    print()
+    run_skill_install(verbose=verbose)
+
 
 # ---------------------------------------------------------------------------
 # Skill installer

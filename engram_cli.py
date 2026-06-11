@@ -170,9 +170,10 @@ def stats():
 @cli.command()
 @click.option('--verbose', '-v', is_flag=True, help='Show all clients including undetected ones')
 def install(verbose):
-    """Auto-configure Engram MCP server for detected AI coding tools.
+    """Configure Engram for all detected AI coding tools.
 
-    Detects and configures: Claude Code, Cursor, Windsurf, Antigravity, Cline.
+    Registers the MCP server and installs the skill for each detected tool.
+    Detects: Claude Code, Cursor, Windsurf, Antigravity, Cline.
     """
     from engram_install import run_install
     run_install(verbose=verbose)
