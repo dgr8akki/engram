@@ -403,3 +403,94 @@ def run_hooks_install(verbose: bool = False):
         print("  Session start  → injects recent memories as context")
         print("  User prompt    → auto-saves when you say 'remember: ...'")
         print("  Session end    → records session topic to Engram")
+
+
+# ---------------------------------------------------------------------------
+# LaunchAgent (macOS autostart)
+# ---------------------------------------------------------------------------
+
+LAUNCH_AGENT_LABEL = "com.engram.server"
+LAUNCH_AGENT_PLIST = Path.home() / "Library" / "LaunchAgents" / f"{LAUNCH_AGENT_LABEL}.plist"
+
+
+def _plist_content() -> str:
+    python = _python()
+    cli = str(_BASE / "engram_cli.py")
+    log = str(Path.home() / "Library" / "Logs" / "engram.log")
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{LAUNCH_AGENT_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{python}</string>
+        <string>{cli}</string>
+        <string>serve</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <true/>
+    <key>StandardOutPath</key>
+    <string>{log}</string>
+    <key>StandardErrorPath</key>
+    <string>{log}</string>
+</dict>
+</plist>
+"""
+
+
+def install_launch_agent() -> tuple[bool, str]:
+    """Install and load the Engram HTTP server as a macOS LaunchAgent."""
+    import platform
+    if platform.system() != "Darwin":
+        return False, "LaunchAgents are macOS-only"
+
+    LAUNCH_AGENT_PLIST.parent.mkdir(parents=True, exist_ok=True)
+    LAUNCH_AGENT_PLIST.write_text(_plist_content())
+
+    # Unload first in case it was already loaded with a stale plist
+    subprocess.run(
+        ["launchctl", "unload", str(LAUNCH_AGENT_PLIST)],
+        capture_output=True,
+    )
+    result = subprocess.run(
+        ["launchctl", "load", str(LAUNCH_AGENT_PLIST)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip() or "launchctl load failed"
+    return True, str(LAUNCH_AGENT_PLIST)
+
+
+def remove_launch_agent() -> tuple[bool, str]:
+    """Unload and remove the Engram LaunchAgent."""
+    if not LAUNCH_AGENT_PLIST.exists():
+        return False, f"plist not found: {LAUNCH_AGENT_PLIST}"
+
+    subprocess.run(
+        ["launchctl", "unload", str(LAUNCH_AGENT_PLIST)],
+        capture_output=True,
+    )
+    LAUNCH_AGENT_PLIST.unlink()
+    return True, str(LAUNCH_AGENT_PLIST)
+
+
+def launch_agent_status() -> str:
+    """Return human-readable status of the Engram LaunchAgent."""
+    if not LAUNCH_AGENT_PLIST.exists():
+        return "not installed"
+
+    result = subprocess.run(
+        ["launchctl", "list", LAUNCH_AGENT_LABEL],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return "installed (not loaded)"
+
+    # Parse PID from launchctl list output (first column)
+    first_line = result.stdout.strip().splitlines()[1] if "\n" in result.stdout else ""
+    pid = first_line.split()[0] if first_line else "-"
+    return f"running (pid {pid})" if pid != "-" else "loaded (idle)"

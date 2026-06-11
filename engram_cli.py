@@ -7,6 +7,8 @@ from datetime import datetime
 import yaml
 import click
 
+__version__ = "1.0.0"
+
 
 def load_config():
     config_path = Path(__file__).parent / "config.yaml"
@@ -42,7 +44,8 @@ def get_embedder():
     return _embedder
 
 
-@click.group()
+@click.group(context_settings={"help_option_names": ["-h", "--help"]})
+@click.version_option(__version__, "-V", "--version", prog_name="engram")
 def cli():
     """Engram — your local semantic knowledge base."""
     pass
@@ -235,6 +238,49 @@ def hooks_install(verbose):
     """
     from engram_install import run_hooks_install
     run_hooks_install(verbose=verbose)
+
+
+@cli.group()
+def autostart():
+    """Manage automatic startup of the Engram HTTP server at login (macOS only)."""
+    pass
+
+
+@autostart.command(name='install')
+def autostart_install():
+    """Install Engram HTTP server as a LaunchAgent so it starts at every login."""
+    from engram_install import install_launch_agent
+    ok, msg = install_launch_agent()
+    if ok:
+        click.echo(f"LaunchAgent installed and loaded.")
+        click.echo(f"Plist: {msg}")
+        click.echo("Engram HTTP server will start automatically at login.")
+        click.echo("Logs: ~/Library/Logs/engram.log")
+    else:
+        click.echo(f"Error: {msg}", err=True)
+        sys.exit(1)
+
+
+@autostart.command(name='remove')
+def autostart_remove():
+    """Remove the Engram LaunchAgent (disables autostart)."""
+    from engram_install import remove_launch_agent
+    ok, msg = remove_launch_agent()
+    if ok:
+        click.echo(f"LaunchAgent removed: {msg}")
+    else:
+        click.echo(f"Error: {msg}", err=True)
+        sys.exit(1)
+
+
+@autostart.command(name='status')
+def autostart_status():
+    """Show whether the Engram LaunchAgent is installed and running."""
+    from engram_install import launch_agent_status, LAUNCH_AGENT_PLIST
+    status = launch_agent_status()
+    click.echo(f"Status: {status}")
+    if LAUNCH_AGENT_PLIST.exists():
+        click.echo(f"Plist:  {LAUNCH_AGENT_PLIST}")
 
 
 @cli.command()

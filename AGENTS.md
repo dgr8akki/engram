@@ -84,11 +84,14 @@ Auto-save trigger phrases (case-insensitive):
 ## Setup Commands
 
 ```bash
-./engram init             # initialise the database
-./engram install          # register MCP + install skill + install hooks (all tools)
-./engram skill install    # skill only
-./engram hooks install    # hooks only
-./engram serve            # start HTTP server (port 7823)
+./engram init                    # initialise the database
+./engram install                 # register MCP + install skill + install hooks (all tools)
+./engram skill install           # skill only
+./engram hooks install           # hooks only
+./engram serve                   # start HTTP server (port 7823)
+./engram autostart install       # start HTTP server automatically at login (macOS LaunchAgent)
+./engram autostart remove        # disable autostart
+./engram autostart status        # check if LaunchAgent is installed / running
 ```
 
 ## Configuration (`config.yaml`)

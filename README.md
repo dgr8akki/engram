@@ -40,6 +40,8 @@ Then restart your IDE and Engram is active.
 ./engram list --limit 20
 ./engram delete 42
 ./engram stats
+./engram -h          # help
+./engram -V          # version
 ```
 
 ## AI Tool Usage
@@ -79,7 +81,10 @@ Hooks run automatically at session boundaries — no configuration needed after 
 For tools without MCP support:
 
 ```bash
-./engram serve           # starts on http://127.0.0.1:7823
+./engram serve                   # start on http://127.0.0.1:7823
+./engram autostart install       # start automatically at login (macOS LaunchAgent)
+./engram autostart remove        # disable autostart
+./engram autostart status        # check if running
 ```
 
 | Endpoint | Description |
