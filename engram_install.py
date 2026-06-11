@@ -10,10 +10,35 @@ from pathlib import Path
 
 ENGRAM_DIR = Path(__file__).parent.resolve()
 MCP_SERVER = ENGRAM_DIR / "engram_mcp_server.py"
-SKILL_SRC = ENGRAM_DIR / "skill"   # the skill/ directory inside this repo
+
+def _skill_src() -> Path:
+    """Return the stable skill path.
+
+    When installed via Homebrew the versioned Cellar path changes on every
+    upgrade, breaking symlinks. Homebrew keeps a stable opt symlink at
+    /opt/homebrew/opt/engram (Apple Silicon) or /usr/local/opt/engram (Intel)
+    that always points to the current version — use that instead.
+    """
+    for opt in [
+        Path("/opt/homebrew/opt/engram/libexec/skill"),
+        Path("/usr/local/opt/engram/libexec/skill"),
+    ]:
+        if opt.exists():
+            return opt
+    return ENGRAM_DIR / "skill"
+
+SKILL_SRC = _skill_src()
 
 
 def _python() -> str:
+    # Homebrew opt path is stable across upgrades
+    for opt_py in [
+        Path("/opt/homebrew/opt/engram/libexec/venv/bin/python3"),
+        Path("/usr/local/opt/engram/libexec/venv/bin/python3"),
+    ]:
+        if opt_py.exists():
+            return str(opt_py)
+    # Dev / non-Homebrew install
     venv = ENGRAM_DIR / "venv" / "bin" / "python3"
     if venv.exists():
         return str(venv)
@@ -246,7 +271,17 @@ def run_skill_install(verbose: bool = False):
 # Hook installer
 # ---------------------------------------------------------------------------
 
-SCRIPTS_DIR = ENGRAM_DIR / "scripts"
+def _scripts_dir() -> Path:
+    """Stable scripts path — prefers Homebrew opt over versioned Cellar."""
+    for opt in [
+        Path("/opt/homebrew/opt/engram/libexec/scripts"),
+        Path("/usr/local/opt/engram/libexec/scripts"),
+    ]:
+        if opt.exists():
+            return opt
+    return ENGRAM_DIR / "scripts"
+
+SCRIPTS_DIR = _scripts_dir()
 
 
 def _hook_cmd(script: str) -> str:
