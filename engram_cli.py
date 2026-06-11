@@ -209,6 +209,34 @@ def skill_path():
     click.echo(str(skill_file))
 
 
+@cli.group()
+def hooks():
+    """Manage Engram memory hooks for AI coding tools."""
+    pass
+
+
+@hooks.command(name='install')
+@click.option('--verbose', '-v', is_flag=True, help='Show undetected tools too')
+def hooks_install(verbose):
+    """Install session-lifecycle hooks into all detected AI coding tools.
+
+    Hooks installed per tool:
+
+    \b
+    Claude Code / Antigravity CLI / Cursor:
+      SessionStart     → injects recent memories as context at session start
+      UserPromptSubmit → auto-saves when you say 'remember: ...' or 'note: ...'
+      SessionEnd       → records session topic to Engram
+
+    \b
+    Windsurf:
+      pre_user_prompt  → writes memories to .windsurfrules before each turn
+      post_cascade_response_with_transcript → saves session topic at turn end
+    """
+    from engram_install import run_hooks_install
+    run_hooks_install(verbose=verbose)
+
+
 @cli.command()
 @click.option('--host', default=None, help='Host to bind (default: 127.0.0.1)')
 @click.option('--port', default=None, type=int, help='Port to bind (default: 7823)')

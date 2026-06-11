@@ -133,6 +133,9 @@ def run_install(verbose: bool = False):
     print()
     run_skill_install(verbose=verbose)
 
+    print()
+    run_hooks_install(verbose=verbose)
+
 
 # ---------------------------------------------------------------------------
 # Skill installer
@@ -237,3 +240,149 @@ def run_skill_install(verbose: bool = False):
     else:
         print("\nSkill installed. Restart your IDE/tool to activate it.")
         print(f"Skill source: {SKILL_SRC / 'SKILL.md'}")
+
+
+# ---------------------------------------------------------------------------
+# Hook installer
+# ---------------------------------------------------------------------------
+
+SCRIPTS_DIR = ENGRAM_DIR / "scripts"
+
+
+def _hook_cmd(script: str) -> str:
+    return f"{_python()} {SCRIPTS_DIR / script}"
+
+
+def _merge_hooks(settings: dict, new_hooks: dict) -> dict:
+    """Merge new_hooks into settings['hooks'] without overwriting unrelated entries."""
+    existing = settings.setdefault("hooks", {})
+    for event, entries in new_hooks.items():
+        bucket = existing.setdefault(event, [])
+        # Remove any previous engram hook entry for this event
+        bucket[:] = [
+            e for e in bucket
+            if not any("engram_" in str(h.get("command", "")) for h in e.get("hooks", [e]))
+        ]
+        bucket.extend(entries)
+    return settings
+
+
+def _read_json(path: Path) -> dict:
+    if path.exists():
+        try:
+            return json.loads(path.read_text())
+        except json.JSONDecodeError:
+            pass
+    return {}
+
+
+def install_hooks_claude_code() -> bool:
+    settings_path = Path.home() / ".claude" / "settings.json"
+    if not settings_path.parent.exists():
+        return False
+
+    settings = _read_json(settings_path)
+    new_hooks = {
+        "SessionStart": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_start.py"), "timeout": 10}]}],
+        "UserPromptSubmit": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_user_prompt.py"), "timeout": 30}]}],
+        "Stop": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_end.py"), "timeout": 60}]}],
+    }
+    _merge_hooks(settings, new_hooks)
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+    return True
+
+
+def install_hooks_antigravity_cli() -> bool:
+    # Antigravity CLI reads from ~/.gemini/settings.json
+    settings_path = Path.home() / ".gemini" / "settings.json"
+    gemini_dir = Path.home() / ".gemini"
+    if not gemini_dir.exists():
+        return False
+
+    settings = _read_json(settings_path)
+    new_hooks = {
+        "SessionStart": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_start.py"), "timeout": 10000}]}],
+        "BeforeAgent": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_user_prompt.py"), "timeout": 30000}]}],
+        "SessionEnd": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_end.py")}]}],
+    }
+    _merge_hooks(settings, new_hooks)
+    settings_path.write_text(json.dumps(settings, indent=2) + "\n")
+    return True
+
+
+def install_hooks_cursor() -> bool:
+    hooks_path = Path.home() / ".cursor" / "hooks.json"
+    if not (Path.home() / ".cursor").exists():
+        return False
+
+    settings = _read_json(hooks_path)
+    settings.setdefault("version", 1)
+    hooks = settings.setdefault("hooks", {})
+
+    for event, script in [
+        ("sessionStart", "engram_session_start.py"),
+        ("beforeSubmitPrompt", "engram_user_prompt.py"),
+        ("sessionEnd", "engram_session_end.py"),
+    ]:
+        bucket = hooks.setdefault(event, [])
+        bucket[:] = [e for e in bucket if "engram_" not in e.get("command", "")]
+        bucket.append({"command": _hook_cmd(script)})
+
+    hooks_path.write_text(json.dumps(settings, indent=2) + "\n")
+    return True
+
+
+def install_hooks_windsurf() -> bool:
+    # Windsurf: write to ~/.codeium/windsurf/hooks.json
+    hooks_dir = Path.home() / ".codeium" / "windsurf"
+    if not hooks_dir.parent.exists():
+        return False
+
+    hooks_dir.mkdir(parents=True, exist_ok=True)
+    hooks_path = hooks_dir / "hooks.json"
+    settings = _read_json(hooks_path)
+    hooks = settings.setdefault("hooks", {})
+
+    for event, script in [
+        ("pre_user_prompt", "engram_windsurf_update.py"),
+        ("post_cascade_response_with_transcript", "engram_session_end.py"),
+    ]:
+        bucket = hooks.setdefault(event, [])
+        bucket[:] = [e for e in bucket if "engram_" not in e.get("command", "")]
+        bucket.append({"command": _hook_cmd(script), "show_output": False})
+
+    hooks_path.write_text(json.dumps(settings, indent=2) + "\n")
+    return True
+
+
+HOOK_CLIENTS = {
+    "Claude Code": install_hooks_claude_code,
+    "Antigravity CLI": install_hooks_antigravity_cli,
+    "Cursor": install_hooks_cursor,
+    "Windsurf": install_hooks_windsurf,
+}
+
+
+def run_hooks_install(verbose: bool = False):
+    print("Installing memory hooks...\n")
+    installed_any = False
+
+    for name, fn in HOOK_CLIENTS.items():
+        try:
+            ok = fn()
+            if ok:
+                print(f"  [OK] {name}")
+                installed_any = True
+            elif verbose:
+                print(f"  [--] {name} (not detected)")
+        except Exception as e:
+            if verbose:
+                print(f"  [!!] {name}: {e}")
+
+    if not installed_any:
+        print("  No supported tools detected for hook installation.")
+    else:
+        print("\nHooks installed:")
+        print("  Session start  → injects recent memories as context")
+        print("  User prompt    → auto-saves when you say 'remember: ...'")
+        print("  Session end    → records session topic to Engram")
