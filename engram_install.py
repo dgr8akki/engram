@@ -336,14 +336,16 @@ def install_hooks_cursor() -> bool:
     settings.setdefault("version", 1)
     hooks = settings.setdefault("hooks", {})
 
-    for event, script in [
-        ("sessionStart", "engram_session_start.py"),
-        ("beforeSubmitPrompt", "engram_user_prompt.py"),
-        ("sessionEnd", "engram_session_end.py"),
-    ]:
+    # Map event → ordered list of scripts to install
+    event_scripts = {
+        "sessionStart":       ["engram_session_start.py", "engram_rules_update.py"],
+        "beforeSubmitPrompt": ["engram_user_prompt.py"],
+        "sessionEnd":         ["engram_session_end.py"],
+    }
+    for event, scripts in event_scripts.items():
         bucket = hooks.setdefault(event, [])
         bucket[:] = [e for e in bucket if "engram_" not in e.get("command", "")]
-        bucket.append({"command": _hook_cmd(script)})
+        bucket.extend({"command": _hook_cmd(s)} for s in scripts)
 
     hooks_path.write_text(json.dumps(settings, indent=2) + "\n")
     return True
@@ -361,7 +363,7 @@ def install_hooks_windsurf() -> bool:
     hooks = settings.setdefault("hooks", {})
 
     for event, script in [
-        ("pre_user_prompt", "engram_windsurf_update.py"),
+        ("pre_user_prompt", "engram_rules_update.py"),
         ("post_cascade_response_with_transcript", "engram_session_end.py"),
     ]:
         bucket = hooks.setdefault(event, [])
@@ -476,6 +478,71 @@ def remove_launch_agent() -> tuple[bool, str]:
     )
     LAUNCH_AGENT_PLIST.unlink()
     return True, str(LAUNCH_AGENT_PLIST)
+
+
+# ---------------------------------------------------------------------------
+# Rules updater LaunchAgent (keeps global rules files current for hookless tools)
+# ---------------------------------------------------------------------------
+
+RULES_AGENT_LABEL = "com.engram.rules"
+RULES_AGENT_PLIST = Path.home() / "Library" / "LaunchAgents" / f"{RULES_AGENT_LABEL}.plist"
+
+
+def _rules_plist_content() -> str:
+    python = _python()
+    cli    = str(_BASE / "engram_cli.py")
+    log    = str(Path.home() / "Library" / "Logs" / "engram.log")
+    home   = str(Path.home())
+    return f"""<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>{RULES_AGENT_LABEL}</string>
+    <key>ProgramArguments</key>
+    <array>
+        <string>{python}</string>
+        <string>{cli}</string>
+        <string>rules</string>
+        <string>update</string>
+        <string>--dir</string>
+        <string>{home}</string>
+    </array>
+    <key>RunAtLoad</key>
+    <true/>
+    <key>StartInterval</key>
+    <integer>1800</integer>
+    <key>StandardOutPath</key>
+    <string>{log}</string>
+    <key>StandardErrorPath</key>
+    <string>{log}</string>
+</dict>
+</plist>
+"""
+
+
+def install_rules_agent() -> tuple[bool, str]:
+    """Install the rules-updater LaunchAgent (macOS only)."""
+    import platform
+    if platform.system() != "Darwin":
+        return False, "LaunchAgents are macOS-only"
+
+    RULES_AGENT_PLIST.parent.mkdir(parents=True, exist_ok=True)
+    RULES_AGENT_PLIST.write_text(_rules_plist_content())
+
+    subprocess.run(["launchctl", "unload", str(RULES_AGENT_PLIST)], capture_output=True)
+    result = subprocess.run(
+        ["launchctl", "load", str(RULES_AGENT_PLIST)],
+        capture_output=True, text=True,
+    )
+    if result.returncode != 0:
+        return False, result.stderr.strip() or "launchctl load failed"
+
+    msg = (
+        f"Plist: {RULES_AGENT_PLIST}\n"
+        f"Updates: ~/.cursorrules, ~/.windsurfrules, ~/.github/copilot-instructions.md"
+    )
+    return True, msg
 
 
 def launch_agent_status() -> str:

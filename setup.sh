@@ -105,7 +105,25 @@ info "Configuring AI coding tools..."
 "$VENV_PYTHON" "$ENGRAM_DIR/engram_cli.py" install
 printf "\n"
 
-# ── 6. Shell alias hint ───────────────────────────────────────────────────────
+# ── 6. macOS: autostart HTTP server + rules-file updater ─────────────────────
+if [[ "$(uname -s)" == "Darwin" ]]; then
+    info "Installing HTTP server autostart (LaunchAgent)..."
+    if "$VENV_PYTHON" "$ENGRAM_DIR/engram_cli.py" autostart install 2>/dev/null; then
+        ok "HTTP server will start automatically at login"
+    else
+        warn "autostart install failed — run 'engram autostart install' manually if needed"
+    fi
+
+    info "Installing rules-file updater (LaunchAgent)..."
+    if "$VENV_PYTHON" "$ENGRAM_DIR/engram_cli.py" rules install 2>/dev/null; then
+        ok "Rules files (~/.cursorrules etc.) will refresh every 30 minutes"
+    else
+        warn "rules install failed — run 'engram rules install' manually if needed"
+    fi
+    printf "\n"
+fi
+
+# ── 7. Shell alias hint ───────────────────────────────────────────────────────
 ENGRAM_BIN="$ENGRAM_DIR/engram"
 printf "${BOLD}Setup complete.${RESET}\n\n"
 printf "Add a shell alias for quick access:\n"

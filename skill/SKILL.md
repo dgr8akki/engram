@@ -139,3 +139,34 @@ Returns total count, date range, and unique tag count. No parameters needed.
 
 5. **Suggest saving mid-conversation** — if the user shares a decision, insight, or
    fact that seems worth keeping, proactively offer: "Want me to save this to Engram?"
+
+---
+
+## Proactive Knowledge Capture
+
+Save to Engram **without being asked** when the session reveals something a future
+session would genuinely benefit from knowing. Judge by whether it would survive
+in a commit message — if not, it belongs in Engram.
+
+**Save proactively when:**
+- An architectural decision was made with non-obvious rationale (why X over Y)
+- A bug's root cause wasn't immediately apparent (the non-obvious thing that caused it)
+- A framework, library, or toolchain gotcha was discovered (would hit someone again)
+- A multi-step workflow was figured out manually that isn't documented anywhere
+- A constraint or invariant in the codebase was uncovered (things that must stay true)
+
+**Don't save:**
+- Routine implementation work with obvious intent
+- Things already documented in README, CLAUDE.md, or comments
+- Trivial fixes where the cause and solution are both obvious
+- Session housekeeping (file reads, searches, listing things)
+
+**How to capture:**
+```json
+{
+  "content": "Decided to use sqlite-vec over Chroma — at personal-note scale (hundreds of entries) a dedicated vector DB process is overkill; sqlite-vec gives cosine search in the same SQLite file with no extra process.",
+  "tags": "architecture,decision"
+}
+```
+
+Be specific — vague entries don't retrieve well. Include the *why*, not just the *what*.

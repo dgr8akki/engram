@@ -23,7 +23,7 @@ class EngramDatabase:
 
     def connect(self):
         if self.conn is None:
-            self.conn = sqlite3.connect(str(self.db_path))
+            self.conn = sqlite3.connect(str(self.db_path), check_same_thread=False)
             self.conn.enable_load_extension(True)
             sqlite_vec.load(self.conn)
             self.conn.enable_load_extension(False)

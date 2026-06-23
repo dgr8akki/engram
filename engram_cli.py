@@ -283,6 +283,68 @@ def autostart_status():
         click.echo(f"Plist:  {LAUNCH_AGENT_PLIST}")
 
 
+@cli.group()
+def rules():
+    """Keep rules files in sync for tools without hook injection (Copilot, Zed, etc.)."""
+    pass
+
+
+@rules.command(name='update')
+@click.option('--dir', 'target_dir', default=None,
+              help='Project directory to update (default: current dir)')
+def rules_update(target_dir):
+    """Write recent memories to .cursorrules, .windsurfrules, and copilot-instructions.md.
+
+    Run this in a project directory to seed it with your Engram memories.
+    The HTTP server must be running (engram serve / engram autostart install).
+    """
+    import importlib.util
+    scripts_dir = Path(__file__).parent / "scripts"
+    spec = importlib.util.spec_from_file_location(
+        "engram_rules_update", scripts_dir / "engram_rules_update.py"
+    )
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+
+    config = load_config()
+    thoughts = mod._fetch_recent(config)
+
+    if not thoughts:
+        click.echo("No memories found. Is the HTTP server running?")
+        click.echo("Start it with: engram serve   or   engram autostart install")
+        return
+
+    project_dir = Path(target_dir) if target_dir else Path.cwd()
+    updated = mod.update_rules_files(project_dir, thoughts)
+
+    if updated:
+        click.echo(f"Updated {len(thoughts)} memories into {len(updated)} file(s):")
+        for p in updated:
+            click.echo(f"  {p}")
+    else:
+        click.echo("No files written (no thoughts or permission error).")
+
+
+@rules.command(name='install')
+def rules_install():
+    """Install a LaunchAgent that refreshes rules files at login and every 30 minutes.
+
+    Writes to ~/ so tools that read global rules (Cursor ~/.cursorrules) stay
+    current even without a per-project hook. Per-project updates happen via the
+    SessionStart hook installed by engram install.
+    """
+    from engram_install import install_rules_agent
+    ok, msg = install_rules_agent()
+    if ok:
+        click.echo("Rules updater installed and loaded.")
+        click.echo(msg)
+        click.echo("Memories will refresh at login and every 30 minutes.")
+        click.echo("Logs: ~/Library/Logs/engram.log")
+    else:
+        click.echo(f"Error: {msg}", err=True)
+        sys.exit(1)
+
+
 @cli.command()
 @click.option('--host', default=None, help='Host to bind (default: 127.0.0.1)')
 @click.option('--port', default=None, type=int, help='Port to bind (default: 7823)')
