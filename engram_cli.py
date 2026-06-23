@@ -23,6 +23,13 @@ _db = None
 _embedder = None
 
 
+def _resolve_db_path(config: dict) -> Path:
+    raw = config['database']['path']
+    p = Path(raw).expanduser()
+    # Relative path (legacy) — resolve against the install dir
+    return p if p.is_absolute() else Path(__file__).parent / raw
+
+
 def get_db():
     global _db
     if _db is None:
@@ -30,8 +37,7 @@ def get_db():
         config = load_config()
         backend = config['embeddings'].get('backend', 'sentence-transformers')
         dim = config['embeddings'].get('ollama_dimensions' if backend == 'ollama' else 'dimensions', 384)
-        db_path = Path(__file__).parent / config['database']['path']
-        _db = EngramDatabase(str(db_path), embedding_dim=dim)
+        _db = EngramDatabase(str(_resolve_db_path(config)), embedding_dim=dim)
     return _db
 
 
@@ -51,14 +57,44 @@ def cli():
     pass
 
 
+def _migrate_db(target: Path) -> bool:
+    """Copy an old DB to target if target doesn't exist. Returns True if migrated."""
+    if target.exists():
+        return False
+
+    candidates = [
+        # Homebrew old Cellar versions (Apple Silicon + Intel)
+        *sorted(Path("/opt/homebrew/Cellar/engram").glob("*/libexec/data/engram.db"), reverse=True),
+        *sorted(Path("/usr/local/Cellar/engram").glob("*/libexec/data/engram.db"), reverse=True),
+        # git-clone install (relative data/ dir next to this file)
+        Path(__file__).parent / "data" / "engram.db",
+    ]
+    for src in candidates:
+        if src.exists() and src != target:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            import shutil
+            shutil.copy2(src, target)
+            return True
+    return False
+
+
 @cli.command()
 def init():
     """Initialize the Engram database."""
     try:
+        config = load_config()
+        db_path = _resolve_db_path(config)
+
+        migrated = _migrate_db(db_path)
+
         db = get_db()
         db.init_database()
-        click.echo("Database initialized.")
-        click.echo(f"Location: {db.db_path}")
+
+        if migrated:
+            click.echo(f"Migrated existing database to {db_path}")
+        else:
+            click.echo("Database initialized.")
+        click.echo(f"Location: {db_path}")
     except Exception as e:
         click.echo(f"Error: {e}", err=True)
         sys.exit(1)

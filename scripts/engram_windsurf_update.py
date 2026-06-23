@@ -35,7 +35,9 @@ def main():
         with open(ENGRAM_DIR / "config.yaml") as f:
             config = yaml.safe_load(f)
 
-        db_path = ENGRAM_DIR / config["database"]["path"]
+        raw = config["database"]["path"]
+        p = Path(raw).expanduser()
+        db_path = p if p.is_absolute() else ENGRAM_DIR / raw
         if not db_path.exists():
             sys.exit(0)
 

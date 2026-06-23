@@ -25,7 +25,9 @@ def get_db():
         from engram_db import EngramDatabase
         backend = config['embeddings'].get('backend', 'sentence-transformers')
         dim = config['embeddings'].get('ollama_dimensions' if backend == 'ollama' else 'dimensions', 384)
-        db_path = Path(__file__).parent / config['database']['path']
+        raw = config['database']['path']
+        p = Path(raw).expanduser()
+        db_path = p if p.is_absolute() else Path(__file__).parent / raw
         _db = EngramDatabase(str(db_path), embedding_dim=dim)
         _db.init_database()
     return _db

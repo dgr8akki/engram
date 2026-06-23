@@ -139,7 +139,9 @@ def main():
             pass  # Fall through to direct DB write
 
         # Fallback: direct DB write if HTTP server is down
-        db_path = ENGRAM_DIR / config["database"]["path"]
+        raw = config["database"]["path"]
+        p = Path(raw).expanduser()
+        db_path = p if p.is_absolute() else ENGRAM_DIR / raw
         if not db_path.exists():
             sys.exit(0)
 

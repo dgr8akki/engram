@@ -23,7 +23,12 @@ def load_config():
 
 config = load_config()
 
-db_path = Path(__file__).parent / config['database']['path']
+def _resolve_db_path(cfg: dict) -> Path:
+    raw = cfg['database']['path']
+    p = Path(raw).expanduser()
+    return p if p.is_absolute() else Path(__file__).parent / raw
+
+db_path = _resolve_db_path(config)
 _db = None
 _embedder = None
 

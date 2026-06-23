@@ -141,7 +141,9 @@ def main():
         if thought_id is None:
             # HTTP server not available — fall back to direct DB write
             try:
-                db_path = ENGRAM_DIR / config["database"]["path"]
+                raw = config["database"]["path"]
+                p = Path(raw).expanduser()
+                db_path = p if p.is_absolute() else ENGRAM_DIR / raw
 
                 from engram_db import EngramDatabase
                 from engram_embeddings import EmbeddingGenerator

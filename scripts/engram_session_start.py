@@ -90,7 +90,9 @@ def main():
         except Exception:
             pass  # never block the session over this
 
-        db_path = ENGRAM_DIR / config["database"]["path"]
+        raw = config["database"]["path"]
+        p = Path(raw).expanduser()
+        db_path = p if p.is_absolute() else ENGRAM_DIR / raw
         if not db_path.exists():
             # DB not yet initialised — nothing to inject
             print(json.dumps({}))

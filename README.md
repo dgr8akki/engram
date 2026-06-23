@@ -146,6 +146,17 @@ http:
 
 Switch to Ollama if you already have it running — no model download needed and better quality embeddings (768-dim vs 384-dim).
 
+## Upgrading
+
+```bash
+brew upgrade engram
+engram autostart install && engram rules install
+```
+
+The second line reloads the background LaunchAgents — Homebrew unloads them during the old version teardown and can't reload them from the install process context. You only need to run this once after each upgrade.
+
+Your knowledge base at `~/.engram/engram.db` is never touched by upgrades.
+
 ## Troubleshooting
 
 **sqlite-vec install fails** — use system Python or Homebrew Python instead of pyenv:
