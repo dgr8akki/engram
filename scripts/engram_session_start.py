@@ -106,31 +106,19 @@ def main():
 
         db = EngramDatabase(str(db_path), embedding_dim=dim)
         db.init_database()
-        thoughts = db.list_recent(limit=15)
+        stats = db.get_stats()
         db.close()
 
-        if not thoughts:
+        if stats["total_thoughts"] == 0:
             print(json.dumps({}))
             return
 
-        lines = [
-            "## Engram — Personal Knowledge Base",
-            "",
-            "Your most recent saved memories (newest first):",
-            "",
-        ]
-        for t in thoughts:
-            ts = datetime.fromisoformat(t["timestamp"]).strftime("%Y-%m-%d")
-            tag_suffix = f"  _(tags: {t['tags']})_" if t["tags"] else ""
-            lines.append(f"- [{ts}] {t['content']}{tag_suffix}")
-
-        lines += [
-            "",
-            "Use `search_engram` to find specific memories by meaning.",
-            "Use `save_thought` to save new insights during this session.",
-        ]
-
-        context = "\n".join(lines)
+        newest = datetime.fromisoformat(stats["newest_thought"]).strftime("%Y-%m-%d %H:%M")
+        context = (
+            f"Engram: {stats['total_thoughts']} thoughts saved "
+            f"({stats['unique_tags']} tags, last saved {newest}). "
+            "Use `search_engram` to look up relevant memories, `save_thought` to save new ones."
+        )
         event_name = hook_input.get("hook_event_name", "SessionStart")
 
         output = {
