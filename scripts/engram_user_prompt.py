@@ -25,16 +25,18 @@ ENGRAM_DIR = Path(__file__).parent.parent
 sys.path.insert(0, str(ENGRAM_DIR))
 
 # Patterns that trigger an auto-save. Capture group 1 = content to save.
+# All anchored to the start of the message so mentioning these words mid-sentence
+# (e.g. "do you know about engram command") never misfires as a save.
 PATTERNS = [
     r"^remember[:\s]+(.+)",
     r"^note[:\s]+(.+)",
     r"^save[:\s]+(.+)",
-    r"remember this[:\s]+(.+)",
-    r"remember this$",               # "remember this" alone → save the previous context
-    r"note (?:that|this)[:\s]+(.+)",
-    r"save this[:\s]+(.+)",
-    r"add to (?:my )?(?:brain|engram|notes|knowledge)[:\s]+(.+)",
-    r"engram[:\s]+(.+)",             # "engram: ..." direct capture
+    r"^remember this[:\s]+(.+)",
+    r"^remember this$",              # "remember this" alone → save the previous context
+    r"^note (?:that|this)[:\s]+(.+)",
+    r"^save this[:\s]+(.+)",
+    r"^add to (?:my )?(?:brain|engram|notes|knowledge)[:\s]+(.+)",
+    r"^engram[:\s]+(.+)",            # "engram: ..." direct capture
 ]
 
 CONTINUE = json.dumps({"continue": True})
@@ -75,9 +77,12 @@ def _search_via_http(prompt: str, config: dict) -> list:
     )
     try:
         with urllib.request.urlopen(url, timeout=1) as r:
-            return json.loads(r.read()).get("results", [])
+            results = json.loads(r.read()).get("results", [])
     except Exception:
         return []
+    # Session summaries are broad/self-similar and drown out deliberate notes —
+    # keep them searchable on demand, just not auto-injected on every prompt.
+    return [r for r in results if "session" not in (r.get("tags") or "").split(",")]
 
 
 def _save_via_http(content: str, tags: str | None, config: dict) -> int | None:

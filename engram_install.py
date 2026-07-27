@@ -302,7 +302,11 @@ def install_hooks_claude_code() -> bool:
     new_hooks = {
         "SessionStart": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_start.py"), "timeout": 10}]}],
         "UserPromptSubmit": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_user_prompt.py"), "timeout": 30}]}],
-        "Stop": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_end.py"), "timeout": 60}]}],
+        "SessionEnd": [{"hooks": [{"type": "command", "command": _hook_cmd("engram_session_end.py"), "timeout": 60}]}],
+        # "Stop" fires at the end of every agent turn, not just true session end —
+        # older installs registered the session-summary save there, producing a
+        # near-duplicate save per turn. Clean up any stale entry on reinstall.
+        "Stop": [],
     }
     _merge_hooks(settings, new_hooks)
     settings_path.write_text(json.dumps(settings, indent=2) + "\n")
